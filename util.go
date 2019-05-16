@@ -73,7 +73,6 @@ func playSound(stopChan chan string){
 				if err != nil {
 					fmt.Println(err)
 				}
-				//TODO: thismay be uneccessary since we are in loop
 				time.Sleep(time.Second * time.Duration(playbackLength))
 			}else{
 				err = device.Stop()
@@ -87,27 +86,40 @@ func playSound(stopChan chan string){
 }
 
 func loadRooms(rooms *[]Room,alertChan chan string){
-	for room := range rooms {
-		go roomListener(&room, alertChan)
+	for index, room := range rooms {
+		go roomListener(&room, index, alertChan)
 	}
 }
 
+//systems send raw number of lamp hours in their status update
 //handles updating the room, emits a string when an alert happens
-func roomListener(room *Room, roomChan chan string){
-	conn, err := net.Dial("tcp",room.Ip+":41794")
-	if err != nil
-	defer conn.Close()
+func roomListener(room *Room, index int, alertChan chan string){
 	bytes := [0x01,0x00,0x0b,0x0a,0xa6,0xca,0x37,0x00,0x72,0x40,0x00,0x00,0xf1,0x01]
-	conn.Write(bytes)
-	msg := make([]byte, 256)
-	for {
-		io.Copy(&msg, conn)
-		fmt.Println(msg)
-		if strings.Contains(string(msg), "need help"){
-			roomChan <- room.Room
+	var conn;TCPConnection
+	defer conn.Close()
+	for{
+		conn, err := net.Dial("tcp",room.Ip+":41794")
+		if err != nil {
+			alertChan <- Alert{index, "connection", False}
+		}else{
+			alert.Connected = true
+			alertChan <- Alert{index, "connection", True}
+			conn.Write(bytes)
+			msg := make([]byte, 20)
+			for {
+				io.Copy(&msg, conn)
+				fmt.Println(msg)
+				if strings.Contains(string(msg), "need help"){
+					roomChan <- Alert{index, "alert", True}
+				}
+				msg = make([]byte, 20)
+			}
 		}
-		msg = make([]byte, 256)
+		time.Sleep(time.Second * time.Duration(5))
 	}
+	
+	
+	
 }
 
 type State struct {
@@ -122,5 +134,11 @@ type Room struct {
 	Room string
 	Ip string
 	Alert bool
+	Connected bool
+}
+
+type Alert struct{
+	Index int
+	Type string
 	Connected bool
 }
