@@ -99,37 +99,31 @@ func PlaySound(stopChan chan string){
 	
 }
 
-func LoadRooms(rooms []Room,alertChan chan Update){
-	for index,room := range rooms {
+func LoadRooms(rooms []*Room,alertChan chan Update){
+	for index, room := range rooms {
 		go roomListener(index, room, alertChan)
 	}
 }
 
-//handles updating the room, emits a string when an alert happens
-func roomListener(index int, room Room, alertChan chan Update){
-	update := Update{index, "connection", false, room.Room}
+//handles updating the room and alerting to help requests
+func roomListener(index int, room *Room, alertChan chan Update){
 	var conn net.Conn
 	for {
-		if !update.Connected {
+		if !room.Connected {
 			conn = connect(room.Ip)
-			update.Connected = conn != nil
-			alertChan <- update
+			room.Connected = conn != nil
 		}
-		for update.Connected {
+		for room.Connected {
 			msg := make([]byte, 20)
 			_, err := conn.Read(msg)
 			if err != nil {
 				fmt.Println(err) 
-				update.Connected = false
-				alertChan <- update
+				room.Connected = false
 				continue
 			}
-			fmt.Print("Received from "+room.Room+":")
-			fmt.Println(msg)
+			fmt.Println("Received from "+room.Room+":", msg)
 			if strings.Contains(string(msg), "need help"){
-				update.Type = "alert"
-				alertChan <- update
-				fmt.Println(string(msg))
+				alertChan <- Update{room.Room}
 			}
 		}
 	}

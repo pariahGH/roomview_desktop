@@ -66,9 +66,9 @@ func main(){
 	if err != nil {
 		fmt.Println(err)
 	}
-	rooms := make([]util.Room,0)
+	rooms := make([]*util.Room,0)
 	for _,room := range roomList[1:] {
-		rooms = append(rooms, util.Room{room[0], room[1], false, false})
+		rooms = append(rooms, &util.Room{room[0], room[1], false})
 	}
 	alertChan := make(chan util.Update)
 	soundChan := make(chan string)
@@ -90,18 +90,16 @@ func main(){
 			close(doneC)
 			return
 		case alert := <- alertChan:
-			if alert.Type == "alert"{
-				state.Alert = true
-				state.AlertRooms = append(state.AlertRooms, alert.Room)
-			}
-			if alert.Type == "connection"{
-				rooms[alert.Index].Connected = alert.Connected
-			}
+			state.Alert = true
+			state.AlertRooms = append(state.AlertRooms, alert.Room)
 		case <-fpsTicker.C:
 			if win.ShouldClose() {
 				close(exitC)
 				continue
 			}
+			//don't know why it keeps complaining about not having a font set
+			//but doing this every loop appears to fix it
+			nk.NkStyleSetFont(ctx, sansfont.Handle())
 			glfw.PollEvents()
 			gfxMain(win, ctx, state, rooms)
 			checkState(state, soundChan)
@@ -119,7 +117,7 @@ func checkState(state *util.State, soundChan chan string){
 	}
 }
 
-func gfxMain(win *glfw.Window, ctx *nk.Context, state *util.State, rooms []util.Room){
+func gfxMain(win *glfw.Window, ctx *nk.Context, state *util.State, rooms []*util.Room){
 	nk.NkPlatformNewFrame()
 
 	bounds := nk.NkRect(0, 0, winWidth, winHeight)
